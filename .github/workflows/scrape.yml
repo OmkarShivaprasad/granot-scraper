@@ -1,0 +1,66 @@
+name: Run Granot Scraper
+
+on:
+  # Manual trigger
+  workflow_dispatch: {}
+  # Scheduled trigger (UTC). Change as you like.
+  schedule:
+    # every 5 minutes (be mindful of minutes usage & site limits)
+    - cron: "*/5 * * * *"
+
+jobs:
+  scrape:
+    name: Scrape & Post
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # don't let multiple runs overlap
+    concurrency:
+      group: granot-scraper
+      cancel-in-progress: true
+
+    env:
+      # timezone for your weekly date math (your script already uses this)
+      TZ: America/New_York
+      # map repo secrets to your script env vars
+      GRANOT_BASE:     ${{ secrets.GRANOT_BASE }}
+      GRANOT_NET_ID:   ${{ secrets.GRANOT_NET_ID }}
+      GRANOT_NET_PASS: ${{ secrets.GRANOT_NET_PASS }}
+      GRANOT_USER:     ${{ secrets.GRANOT_USER }}
+      GRANOT_PASS:     ${{ secrets.GRANOT_PASS }}
+      GAS_ENDPOINT:    ${{ secrets.GAS_ENDPOINT }}
+      HEADLESS:        "true"
+      # optional
+      DEBUG:           "false"
+      NET_IDLE_MS:     "1500"
+      RETRIES:         "2"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      # Playwright needs browser binaries + system dependencies
+      - name: Install Playwright (Chromium) + OS deps
+        run: npx playwright install --with-deps chromium
+
+      - name: Run scraper
+        run: npm start
+
+      # Save console output (handy for debugging)
+      - name: Upload run logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: |
+            playwright-report/
+            **/*.log
+          if-no-files-found: ignore
