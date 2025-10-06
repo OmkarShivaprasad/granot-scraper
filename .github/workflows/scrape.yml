@@ -45,7 +45,7 @@ jobs:
           cache: "npm"
 
       - name: Install deps
-        run: npm ci
+        run: npm install
 
       # Playwright needs browser binaries + system dependencies
       - name: Install Playwright (Chromium) + OS deps
