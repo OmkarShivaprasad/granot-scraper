@@ -1,0 +1,16 @@
+{
+  "name": "granot-scraper",
+  "version": "1.0.0",
+  "description": "Scraper for Granot Salesmen Performance",
+  "private": true,
+  "type": "module",
+  "main": "scrape.js",
+  "scripts": {
+    "start": "node scrape.js",
+    "ci": "HEADLESS=true node scrape.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "playwright": "^1.55.1"
+  }
+}
