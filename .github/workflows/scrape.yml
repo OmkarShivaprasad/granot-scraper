@@ -3,64 +3,81 @@ name: Run Granot Scraper
 on:
   # Manual trigger
   workflow_dispatch: {}
+
   # Scheduled trigger (UTC). Change as you like.
   schedule:
-    # every 5 minutes (be mindful of minutes usage & site limits)
-    - cron: "*/5 * * * *"
+    - cron: "*/5 * * * *"  # every 5 minutes
+
+# Prevent overlapping runs (latest wins)
+concurrency:
+  group: granot-scraper
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   scrape:
     name: Scrape & Post
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # don't let multiple runs overlap
-    concurrency:
-      group: granot-scraper
-      cancel-in-progress: true
+    timeout-minutes: 20
 
     env:
-      # timezone for your weekly date math (your script already uses this)
-      TZ: America/New_York
-      # map repo secrets to your script env vars
-      GRANOT_BASE:     ${{ secrets.GRANOT_BASE }}
-      GRANOT_NET_ID:   ${{ secrets.GRANOT_NET_ID }}
+      # --- your scraper env comes from repo secrets ---
+      GRANOT_BASE:   ${{ secrets.GRANOT_BASE }}
+      GRANOT_NET_ID: ${{ secrets.GRANOT_NET_ID }}
       GRANOT_NET_PASS: ${{ secrets.GRANOT_NET_PASS }}
-      GRANOT_USER:     ${{ secrets.GRANOT_USER }}
-      GRANOT_PASS:     ${{ secrets.GRANOT_PASS }}
-      GAS_ENDPOINT:    ${{ secrets.GAS_ENDPOINT }}
-      HEADLESS:        "true"
-      # optional
-      DEBUG:           "false"
-      NET_IDLE_MS:     "1500"
-      RETRIES:         "2"
+      GRANOT_USER:   ${{ secrets.GRANOT_USER }}
+      GRANOT_PASS:   ${{ secrets.GRANOT_PASS }}
+      GAS_ENDPOINT:  ${{ secrets.GAS_ENDPOINT }}
+
+      # Optional knobs (set repo secrets or leave defaults)
+      HEADLESS: "true"
+      DEBUG:    "false"
+      NET_IDLE_MS: "1500"
+      RETRIES: "2"
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
+          cache: npm
 
-      - name: Install deps
-        run: npm install
+      - name: Install deps (prefer reproducible)
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm i
+          fi
 
-      # Playwright needs browser binaries + system dependencies
-      - name: Install Playwright (Chromium) + OS deps
+      - name: Install Playwright (Chromium only) + OS deps
         run: npx playwright install --with-deps chromium
 
-      - name: Run scraper
-        run: npm start
+      # Small, robust retry wrapper around your script
+      - name: Run scraper (retry up to 3x)
+        run: |
+          set -e
+          for i in 1 2 3; do
+            echo "Attempt $i…"
+            node scrape.js && break
+            echo "Attempt $i failed. Sleeping 20s…"
+            sleep 20
+          done
 
-      # Save console output (handy for debugging)
+      # Upload any logs/reports you might write; safe if none exist
       - name: Upload run logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: logs
-          path: |
-            playwright-report/
-            **/*.log
+          name: run-logs
           if-no-files-found: ignore
+          path: |
+            playwright-report/**
+            **/debug.log
+            **/logs/**
+            **/*.png
