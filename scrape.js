@@ -23,7 +23,7 @@ for (const [k,v] of [
   ['GRANOT_PASS', GRANOT_PASS],
 ]) if (!v) throw new Error(`Missing env var: ${k}`);
 
-const VENDOR_ORDER = ['Raw','Em Semi','Mover Matcher','MM Inbound','MF Paper','MF Calls','Semi AH','1800'];
+const VENDOR_ORDER = ['Raw','Em Semi','Mover Matcher','MM Inbound','MF Paper','MF Calls','Semi AH','1-800-BOOK'];
 const vendorTemplate = () => Object.fromEntries(VENDOR_ORDER.map(v => [v, 0]));
 const SOURCE_TO_VENDOR = {
   'Equate Media - Raw Calls': 'Raw',
@@ -35,7 +35,7 @@ const SOURCE_TO_VENDOR = {
   'MF Paper': 'MF Paper',
   'MF Calls': 'MF Calls',
   'Semi AH': 'Semi AH',
-  '1800': '1800',
+  '1-800-BOOK': '1-800-BOOK',
 };
 
 // ---------- DATE HELPERS (Eastern Time, Monday→Sunday) ----------
@@ -134,7 +134,7 @@ function vendorFromSource(srcText) {
   if (/mf\s*paper/i.test(s)) return 'MF Paper';
   if (/mf\s*calls/i.test(s)) return 'MF Calls';
   if (/semi\s*ah/i.test(s)) return 'Semi AH';
-  if (/1800/.test(s)) return '1800';
+  if (/1[\s\-]?800[\s\-]?book/i.test(s)) return '1-800-BOOK'; // updated line
   return null;
 }
 
